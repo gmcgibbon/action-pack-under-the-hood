@@ -1,20 +1,1180 @@
  <!DOCTYPE html>
 <html>
   <head>
-    <title>Routing Under The Hood</title>
+    <title>Action Pack Under The Hood</title>
     <meta charset="utf-8">
-    <script src="remark.min.js">
+    <link rel="stylesheet" href="https://unpkg.com/reveal.js@4.5.0/dist/reset.css">
+    <link rel="stylesheet" href="https://unpkg.com/reveal.js@4.5.0/dist/reveal.css">
+    <link rel="stylesheet" href="https://unpkg.com/reveal.js@4.5.0/dist/theme/night.css">
+    <link rel="stylesheet" href="https://unpkg.com/highlight.js@11.8.0/styles/github-dark.css">
+    <link rel="stylesheet" href="https://unpkg.com/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
+    <script type="importmap">
+      {
+        "imports": {
+          "mermaid": "https://unpkg.com/mermaid@10.2.4/dist/mermaid.esm.min.mjs",
+          "reveal.js": "https://unpkg.com/reveal.js@4.5.0/dist/reveal.esm.js",
+          "reveal.js-mermaid-plugin": "./mermaid-plugin.js",
+          "reveal.js-laser-pointer-plugin": "./laser-pointer-plugin.js",
+          "reveal.js-markdown-plugin": "https://unpkg.com/reveal.js@4.5.0/plugin/markdown/markdown.esm.js",
+          "reveal.js-highlight-plugin": "https://unpkg.com/reveal.js@4.5.0/plugin/highlight/highlight.esm.js",
+          "reveal.js-notes-plugin": "https://unpkg.com/reveal.js@4.5.0/plugin/notes/notes.esm.js"
+        }
+      }
     </script>
-    <style>
-
-    </style>
   </head>
+  <style>
+    svg {
+      max-width: 90% !important;
+      line-height: 150%;
+      -webkit-text-stroke-width: 0.01px;
+    }
+
+    img[alt="Gannon"] {
+      float: left;
+      width: 40%;
+    }
+
+    img[alt="Server"] {
+      width: 20%;
+    }
+    
+    img[alt="Rack"] {
+      width: 50%;
+      background: #FFF;
+    }
+  </style>
   <body>
-    <textarea id="source">
-      # Routing Under The Hood
-    </textarea>
-    <script>
-      var slideshow = remark.create();
+    <div class="reveal">
+      <div class="slides">
+        <section data-markdown>
+          <script type="text/template">
+            # Action Pack Under The Hood
+
+            #### [Ganon McGibbon](https://gannon.io/)
+
+            Note:
+            For Winnipeg Ruby User Group, September 2023
+            ---
+            ## 👋 Hi, I'm Gannon
+
+            ![Gannon](images/me.jpg)
+
+            - Works at Shopify
+            - Committer on Ruby on Rails
+            - [@gmcgibbon](https://github.com/gmcgibbon) on GitHub
+            Note:
+            Intro
+            ---
+            ## How my routing adventure started
+
+            # 👨‍💻
+
+            Note:
+            - Tasked with moving routes
+            - Moving routes ins't always easy
+            - Reading the source of routing in Rails
+            - Not of a lot of documentation on HOW it works
+            ---
+            ## Why learn about routing?
+
+            - Frameworks inspire each other
+            - You probably work with web technologies
+            - Patterns and principles are language agnostic
+
+            # 🤔
+
+            Note:
+            - You'll probably work with the web at some point
+            - Web frameworks tend to borrow concepts
+            - Rails is one of the most widely used web frameworks
+            - Patterns and principles are language agnostic
+            ---
+            # How Rails routes requests
+            ---
+            ## Model View Controller (MVC)
+            
+            ```mermaid
+            flowchart LR
+              Client("👨‍💻")
+              Model
+              View
+              Controller
+              Client -- "Request" --> Controller
+              Controller -- "Response" --> Client
+              Controller -- "Queries" --> Model
+              Model --> Controller
+              Controller -- "Renders" --> View
+              View --> Controller
+            ```
+
+            Note:
+            - What is Model View Controller?
+            - How MVC looks in Rails
+            - Talk focuses on the C in MVC
+            ---
+            ## Controller-client interaction
+
+            ```mermaid
+            flowchart LR
+              Client("👨‍💻")
+              Controller
+              Client -- "Request" --> Controller
+              Controller -- "Response" --> Client
+            ```
+
+            Note:
+            - Zoom in to Controller
+            - Maybe MVC, maybe not
+            - Another pattern in disguise
+            ---
+            ## Request-response model
+
+            ```mermaid
+            flowchart LR
+              Client("👨‍💻")
+              Server
+              Client -- "Request" --> Server
+              Server -- "Response" --> Client
+            ```
+
+            Note:
+            - What is the Request-response model?
+            - Maybe MVC, maybe not
+            - Most web frameworks use these concepts
+            ---
+            ## What routes requests in Rails?
+            
+            ![Action Pack](images/actionpack.png)
+
+            Note:
+            - Rails is a collection of gems (libs)
+            - Action Pack routes requests in Rails
+            - Action Pack is a dependency of Rails
+            - Provides controllers (the C in MVC)
+            - Docs for Action Pack mainly on controllers
+            ---
+            ## Routing requests with Action Pack
+
+            ```mermaid      
+            stateDiagram-v2
+              direction LR
+              Request
+              state Server {
+                direction LR
+                state "Web Server" as App {
+                  direction LR
+                  [*] --> Rack
+                  Rack --> Router
+                  Router --> Controller
+                }
+                [*] --> App
+              }
+              Request --> Server
+              Controller --> [*]
+            ```
+            Note:
+            - How a request gets from server to controller
+            - Follow the diagram
+            - Boxes will be explained
+            ---
+            ## Server
+
+            - The physical machine
+            - In a data center somewhere
+            - Referred to as "the bare metal"
+
+            ![Server](images/server.png)
+            Note:
+            - Physical machine that serves code
+            - Probably in a data center somewhere
+            - Called "the bare metal", but probably virtualized
+            ---
+            ## Web server
+
+            - What actually hosts your app code
+            - Plug and play
+            - Puma by default in Rails
+
+            ![Puma](images/puma.png)
+            Note:
+            - Hosts app code
+            - Plug and play
+            - Puma by default
+            - Also Unicorn, Thin, WEBrick, etc.
+            ---
+            ## Rack
+
+            - The bridge between web server and framework
+            - Packages code into "apps" and "middleware"
+            - Provides request and response objects
+            - Used by other frameworks (Hanami, Sinatra, etc.)
+
+            ![Rack](images/rack.png)
+            Note:
+            - Bridge between web server and framework
+            - Deals in apps and middlewares
+            - Provides request-response objects
+            - Used by Rails, Hanami, Sinatra, and more
+            ---
+            ## Rack basics
+
+            ```rb
+            # config.ru
+            class SomeMiddleware
+              def initialize(app)
+                @app = app
+              end
+              def call(env)
+                @app.call(env)
+              end
+            end
+
+            APP = proc do |_env|
+              [200, { "Content-Type" => "text/plain" }, ["Hello World\n"]]
+            end
+
+            use(SomeMiddleware)
+            run(APP)
+            ```
+            Note:
+            - Explain code
+            - Use for middleware, run for apps
+            - Anything that responds to call
+            ---
+            ## Rack in Rails
+
+            ```rb []
+            # actionpack/actionpack.gemspec
+            Gem::Specification.new do |s|
+              s.name        = "actionpack"
+              # ...
+              s.add_dependency "activesupport", version
+            
+              s.add_dependency "nokogiri", ">= 1.8.5"
+              s.add_dependency "rack",      ">= 2.2.4"
+              s.add_dependency "rack-session", ">= 1.0.1"
+              s.add_dependency "rack-test", ">= 0.6.3"
+              s.add_dependency "rails-html-sanitizer", "~> 1.6"
+              s.add_dependency "rails-dom-testing", "~> 2.2"
+              s.add_dependency "actionview", version
+              #...
+            end
+            ```
+            Note:
+            - Action Pack is a dependency of Rails
+            - Explain gemspecs
+            - Explain code
+            ---
+            ## Rack in Rails
+
+            ```rb [8]
+            # actionpack/actionpack.gemspec
+            Gem::Specification.new do |s|
+              s.name        = "actionpack"
+              # ...
+              s.add_dependency "activesupport", version
+            
+              s.add_dependency "nokogiri", ">= 1.8.5"
+              s.add_dependency "rack",      ">= 2.2.4"
+              s.add_dependency "rack-session", ">= 1.0.1"
+              s.add_dependency "rack-test", ">= 0.6.3"
+              s.add_dependency "rails-html-sanitizer", "~> 1.6"
+              s.add_dependency "rails-dom-testing", "~> 2.2"
+              s.add_dependency "actionview", version
+              #...
+            end
+            ```
+            Note:
+            - Rack is a dependency of Action Pack
+            - Explain version contraints
+            - Everything is just gems
+            ---
+            ## Middleware in Rails
+
+            ```txt []
+            > bin/rails middleware
+            use Webpacker::DevServerProxy
+            use Rack::MiniProfiler
+            use ActionDispatch::HostAuthorization
+            use Rack::Sendfile
+            use ActionDispatch::Static
+            use ActionDispatch::Executor
+            use ActiveSupport::Cache::Strategy::LocalCache::Middleware
+            use Rack::Runtime
+            use Rack::MethodOverride
+            # ...
+            use Rack::ETag
+            use Rack::TempfileReaper
+            use ActionDispatch::Static
+            run Some::Application.routes
+            ```
+            Note:
+            - Middleware command
+            - Read top to bottom
+            - Lots of middleware in Rails servers
+            - Gems and developers can add to the stack
+            ---
+            ## Rack Middleware
+
+            ```rb
+            # actionpack/lib/action_dispatch/middleware/static.rb
+            module ActionDispatch
+              class Static
+                def initialize(app, path, index: "index", headers: {})
+                  @app = app
+                  @file_handler = FileHandler.new(
+                    path, index: index, headers: headers,
+                  )
+                end
+
+                def call(env)
+                  @file_handler.attempt(env) || @app.call(env)
+                end
+              end
+            end
+            ```
+            Note:
+            - Introduce AD::Static`
+            - It serves static files from the public dir
+            - Error pages like 404 are good examples
+            ---
+            ## Middleware in Rails
+
+            ```txt [15]
+            > bin/rails middleware
+            use Webpacker::DevServerProxy
+            use Rack::MiniProfiler
+            use ActionDispatch::HostAuthorization
+            use Rack::Sendfile
+            use ActionDispatch::Static
+            use ActionDispatch::Executor
+            use ActiveSupport::Cache::Strategy::LocalCache::Middleware
+            use Rack::Runtime
+            use Rack::MethodOverride
+            # ...
+            use Rack::ETag
+            use Rack::TempfileReaper
+            use ActionDispatch::Static
+            run Some::Application.routes
+            ```
+            Note:
+            - Application routes is a rack app
+            - Lots of middleware before app
+            - The final step in routing a request
+            ---
+            ## The Rails router
+
+            - The router code is private API
+            - It may change in the future without notice
+            - It pronbably won't though
+
+            # ⚠️
+
+            Note:
+            - Action Pack internals are not public API
+            - As a result, this is subject to change
+            - I doubt it will change too much
+            - !!! Some code simplified for slideshow
+            ---
+            ## The Rails router
+
+            ```rb []
+            # actionpack/lib/action_dispatch/routing/route_set.rb
+            class ActionDispatch::Routing::RouteSet
+              def call(env)
+                req = make_request(env)
+                req.path_info = Journey::Router::Utils
+                  .normalize_path(req.path_info)
+                @router.serve(req)
+              end
+            end
+            ```
+            Note:
+            - Rails.application.routes is a RouteSet
+            - RouteSets respond to call
+            - Explain code
+            - The RouteSet object is the rack app
+            ---
+            ## The Rails router
+
+            ```rb [7]
+            # actionpack/lib/action_dispatch/routing/route_set.rb
+            class ActionDispatch::Routing::RouteSet
+              def call(env)
+                req = make_request(env)
+                req.path_info = Journey::Router::Utils
+                  .normalize_path(req.path_info)
+                @router.serve(req)
+              end
+            end
+            ```
+            Note:
+            - RouteSet forwards the request to the router
+            ---
+            ## The Rails router
+
+            ```rb []
+            # actionpack/lib/action_dispatch/journey/router.rb
+            class ActionDispatch::Journey::Router
+              def serve(req)
+                find_routes(req).each do |match, parameters, route|
+                  tmp_params = set_params.merge route.defaults
+                  req.path_parameters = tmp_params
+                  req.route_uri_pattern = route.path.spec.to_s
+                  _, headers, _ = response = route.app.serve(req)
+              
+                  next if "pass" == headers[Constants::X_CASCADE]
+                  return response
+                end
+                [404, { Constants::X_CASCADE => "pass" }, ["Not Found"]]
+              end
+            end
+            ```
+            Note:
+            - This is the Rails Router
+            - Explain code
+            ---
+            ## The Rails router
+
+            ```rb [8]
+            # actionpack/lib/action_dispatch/journey/router.rb
+            class ActionDispatch::Journey::Router
+              def serve(req)
+                find_routes(req).each do |match, parameters, route|
+                  tmp_params = set_params.merge route.defaults
+                  req.path_parameters = tmp_params
+                  req.route_uri_pattern = route.path.spec.to_s
+                  _, headers, _ = response = route.app.serve(req)
+              
+                  next if "pass" == headers[Constants::X_CASCADE]
+                  return response
+                end
+                [404, { Constants::X_CASCADE => "pass" }, ["Not Found"]]
+              end
+            end
+            ```
+            Note:
+            - Route is found and app receives request
+            ---
+            ## The Rails router
+
+            ```rb []
+            # actionpack/lib/action_dispatch/routing/route_set.rb
+            class ActionDispatch::Routing::RouteSet::Dispatcher
+              def serve(req)
+                params     = req.path_parameters
+                controller = controller req
+                res        = controller.make_response! req
+                dispatch(controller, params[:action], req, res)
+              rescue ActionController::RoutingError
+                if @raise_on_name_error
+                  raise
+                else
+                  [404, { Constants::X_CASCADE => "pass" }, []]
+                end
+              end
+            end
+            ```
+            Note:
+            - App can be a few things
+            - Typically a dispatcher
+            - Dispatches the controller
+            - 404 Rack response when not routed
+            ---
+            ## The Rails router
+
+            ```rb [7]
+            # actionpack/lib/action_dispatch/routing/route_set.rb
+            class ActionDispatch::Routing::RouteSet::Dispatcher
+              def serve(req)
+                params     = req.path_parameters
+                controller = controller req
+                res        = controller.make_response! req
+                dispatch(controller, params[:action], req, res)
+              rescue ActionController::RoutingError
+                if @raise_on_name_error
+                  raise
+                else
+                  [404, { Constants::X_CASCADE => "pass" }, []]
+                end
+              end
+            end
+            ```
+            Note:
+            - Dispatcher forwards to the controller
+            ---
+            ## The Rails router
+            ```rb []
+            # actionpack/lib/action_controller/metal.rb
+            class ActionController::Metal
+              def dispatch(name, request, response)
+                set_request!(request)
+                set_response!(response)
+                process(name)
+                request.commit_flash
+                to_a
+              end
+            end
+            ```
+            Note:
+            - The request and response are assigned to the controller
+            ---
+            ## The Rails router
+            ```rb [6]
+            # actionpack/lib/action_controller/metal.rb
+            class ActionController::Metal
+              def dispatch(name, request, response)
+                set_request!(request)
+                set_response!(response)
+                process(name)
+                request.commit_flash
+                to_a
+              end
+            end
+            ```
+            Note:
+            - And then we process the action
+            ---
+            ## Request routing in a Rails app
+            ```mermaid      
+              stateDiagram-v2
+                direction LR
+                Request
+                state "Rails App" as App {
+                  direction LR
+                  [*] --> MiddlewareStack
+                  MiddlewareStack --> RouteSet
+                  RouteSet --> Router
+                  Router --> Route
+                  Route --> Dispatcher
+                  Dispatcher --> Controller
+                  Controller --> [*]
+                }
+                Request --> App
+            ```
+            Note:
+            - The journey of a request in a Rails app
+            - Explain the flow
+            ---
+            ## Response routing in a Rails app
+            ```mermaid      
+              stateDiagram-v2
+                direction LR
+                Response
+                state "Rails App" as App {
+                  direction LR
+                  [*] --> Controller
+                  Controller --> Dispatcher
+                  Dispatcher --> Route
+                  Route --> Router
+                  Router --> RouteSet
+                  RouteSet --> MiddlewareStack
+                  MiddlewareStack --> [*]
+                }
+                App --> Response
+            ```
+            Note:
+            - The same as requests, but reversed
+            - Just following method returns
+            ---
+            # How Rails draws routes
+            ---
+            ## The Rails router
+
+            ```rb [4]
+            # actionpack/lib/action_dispatch/journey/router.rb
+            class ActionDispatch::Journey::Router
+              def serve(req)
+                find_routes(req).each do |match, parameters, route|
+                  tmp_params = set_params.merge route.defaults
+                  req.path_parameters = tmp_params
+                  req.route_uri_pattern = route.path.spec.to_s
+                  _, headers, _ = response = route.app.serve(req)
+              
+                  next if "pass" == headers[Constants::X_CASCADE]
+                  return response
+                end
+                [404, { Constants::X_CASCADE => "pass" }, ["Not Found"]]
+              end
+            end
+            ```
+            Note:
+            - If we look back at the router
+            - Didn't cover how the find_routes method
+            - Pretty curcial part
+            ---
+            ## The Rails router
+
+            ```rb []
+            # actionpack/lib/action_dispatch/journey/router.rb
+            class ActionDispatch::Journey::Router
+              def find_routes(req)
+                path_info = req.path_info
+                routes = filter_routes(path_info).concat(
+                  custom_routes.find_all { |r|
+                    r.path.match?(path_info)
+                  }
+                )
+                if req.head?
+                  routes = match_head_routes(routes, req)
+                else
+                  routes.select! { |r| r.matches?(req) }
+                end
+                routes.sort_by!(&:precedence)
+                routes.map! { |r|
+                  match_data = r.path.match(path_info)
+                  path_parameters = {}
+                  match_data.names.each_with_index { |name, i|
+                    val = match_data[i + 1]
+                    path_parameters[name.to_sym] =
+                      Utils.unescape_uri(val) if val
+                  }
+                  [match_data, path_parameters, r]
+                }
+              end
+            end
+            ```
+            Note:
+            - Long and comlex method
+            - Would fail stricter code quality checks
+            ---
+            ## The Rails router
+
+            ```rb [5, 13, 15]
+            # actionpack/lib/action_dispatch/journey/router.rb
+            class ActionDispatch::Journey::Router
+              def find_routes(req)
+                path_info = req.path_info
+                routes = filter_routes(path_info).concat(
+                  custom_routes.find_all { |r|
+                    r.path.match?(path_info)
+                  }
+                )
+                if req.head?
+                  routes = match_head_routes(routes, req)
+                else
+                  routes.select! { |r| r.matches?(req) }
+                end
+                routes.sort_by!(&:precedence)
+                routes.map! { |r|
+                  match_data = r.path.match(path_info)
+                  path_parameters = {}
+                  match_data.names.each_with_index { |name, i|
+                    val = match_data[i + 1]
+                    path_parameters[name.to_sym] =
+                      Utils.unescape_uri(val) if val
+                  }
+                  [match_data, path_parameters, r]
+                }
+              end
+            end
+            ```
+            Note:
+            - Focus on a few areas
+            - Filters routes using path info
+            - Filters routes by request
+            - Sorts by precedence
+            - Is RouteSet just a big list?
+            ---
+            ## Routing architecture
+            
+            ## O(n) vs O(1)
+
+            ```rb
+            # o(n) array
+            array = (1..1000).map { Article.new(id) }
+            array.find { |article| article.id == 45 }
+
+            # vs o(1) hash
+            hash = (1..10).map { |id| [id, Article.new(id)] }.to_h
+            hash[45]
+            ```
+
+            Note:
+            - Take a step back
+            - Diff between O(n) vs O(1)
+            - Array vs hash
+            - Routes are basically a big array, at least in Rails
+            ---
+            ## Routing under a microscope
+
+            ```txt
+            # app with 5 routes
+            > time bin/rails runner ":boot"
+            0.75s user 0.41s system 95% cpu 1.220 total
+            # app with 1,000 routes
+            > time bin/rails runner ":boot"
+            0.98s user 0.55s system 95% cpu 1.600 total
+            # app with 10,000 routes
+            > time bin/rails runner ":boot"
+            2.25s user 0.45s system 97% cpu 2.763 total
+            ```
+            
+            Note:
+            - Explain commands
+            - Scales with more routes added
+            - Boot and request time both slow down
+            ---
+            ## Unused routes
+            
+            ```txt
+            > bin/rails routes --unused
+            Found 1 unused route:
+
+              Prefix Verb URI Pattern          Controller#Action
+            some_path GET  /some_path(.:format) some_controller#action
+            ```
+
+            Note:
+            - Introduce command
+            - Detects routes that map to a invalid controllers
+            - Useful to reduce routes size
+            - Available in Rails 7.1.
+            ---
+            ## Routing priority
+            
+            ```txt
+            > bin/rails routes
+            Prefix Verb URI Pattern      Controller#Action
+              root GET  /                application#index
+              blog      /blog(.:format)  Blog::Engine
+
+            Routes for Blog::Engine:
+            articles GET  /                       blog/articles#index
+             article GET  /articles/:id(.:format) blog/articles#show
+            ```
+            Note:
+            - Introduce command
+            - Routes have priority
+            - Evaluated in the order you define them
+            - Priority matters, especially when moving routes
+            - Engine line segway
+            ---
+            ## Modular routing
+            
+            - Engines can draw routes
+            - App routes take priority over engines routes
+            - Mounted, drawn, appended, or prepended
+
+            # ⚙️
+
+            Note:
+            - Talk about engines
+            - Devise, Active Storage etc.
+            - Engines can draw routes
+            - App routes first, then engine routes unusually
+            - How engines can add routes to your application
+            - Can be done via draw, append, prepend, or mount
+            ---
+            ## Routing with engines
+
+            ```rb
+            # config/routes.rb
+            Rails.application.routes.draw do
+              root to: "application#index"
+              mount Blog::Engine, at: "/blog"
+            end
+            ```
+
+            ```txt
+            Prefix Verb URI Pattern      Controller#Action
+              root GET  /                application#index
+              blog      /blog(.:format)  Blog::Engine
+
+            Routes for Blog::Engine:
+            articles GET  /                       blog/articles#index
+             article GET  /articles/:id(.:format) blog/articles#show
+            ```
+
+            Note:
+            - How engine routes can be mounted
+            - Engine constants mount into app routes
+            - Slower than other methods
+            - Collisions are not possible
+            - Priority is obvious
+            ---
+            ## Routing with engines
+            
+            ```rb
+            # blog/config/routes.rb
+            Rails.application.routes.draw do
+              resources :articles, only: %i(index show), module: :blog
+            end
+            ```
+
+            ```txt
+            Prefix Verb URI Pattern             Controller#Action
+                root GET  /                       application#index
+            articles GET  /articles(.:format)     blog/articles#index
+             article GET  /articles/:id(.:format) blog/articles#show
+            ```
+
+            Note:
+            - How routes can be drawn onto app
+            - Active Storage, for example
+            - Fast, because it is all one RouteSet
+            - Collisions are possible
+            - Priority is not obvious
+            ---
+            ## Routing with engines
+            
+            ```rb
+            # blog/config/initializers/append_routes.rb
+            Rails.application.routes.append do
+              resources :articles, only: %i(index show), module: :blog
+            end
+            ```
+
+            ```txt
+            Prefix Verb URI Pattern             Controller#Action
+                root GET  /                       application#index
+            articles GET  /articles(.:format)     blog/articles#index
+             article GET  /articles/:id(.:format) blog/articles#show
+            ```
+
+            Note:
+            - How routes can be appended onto app
+            - Rails welcome page route, for example
+            - Fast, because it is all one RouteSet
+            - Collisions are possible
+            - Priority is more obvious
+            ---
+            ## Routing with engines
+            
+            ```rb
+            # blog/config/initializers/prepend_routes.rb
+            Rails.application.routes.prepend do
+              resources :articles, only: %i(index show), module: :blog
+            end
+            ```
+
+            ```txt
+            Prefix Verb URI Pattern             Controller#Action
+            articles GET  /articles(.:format)     blog/articles#index
+             article GET  /articles/:id(.:format) blog/articles#show
+                root GET  /                       application#index
+            ```
+
+            Note:
+            - How routes can be prepended onto app
+            - Rails internal info routes are an example of prepended routes
+            - Fast, because it is still one RouteSet
+            - Collisions are still possible
+            - Priority is more obvious
+            ---
+            # How to change routes safely
+            ---
+            ## Route shadowing
+            
+            ```rb []
+            # config/routes.rb
+            Rails.application.routes.draw do
+              get "*", to: "errors#404"
+              root to: "application#index"
+              resources :articles, only: %i(index show), module: :blog
+            end
+            ```
+
+            Note:
+            - Exaplin code
+            - Exaplain why this doesn't work
+            - Route priority will always choose the first route
+            ---
+            ## Route shadowing
+            
+            ```rb [3]
+            # config/routes.rb
+            Rails.application.routes.draw do
+              get "*", to: "errors#404"
+              root to: "application#index"
+              resources :articles, only: %i(index show), module: :blog
+            end
+            ```
+
+            # ❌
+
+            Note:
+            - The first route is too general
+            - It should be moved to the bottom
+            - Low priority routes can be more general
+            ---
+            ## Route shadowing
+            
+            ```rb
+            # config/routes.rb
+            Rails.application.routes.draw do
+              root to: "articles#index"
+              resources :articles, only: %i(index show), module: :blog
+              get "*", to: "errors#404"
+            end
+            ```
+
+            # ✅
+
+            Note:
+            - Moving the general route down fixes it
+            - We can do more
+            ---
+            ## Route shadowing
+
+            ```rb
+            # config/routes.rb
+            Rails.application.routes.draw do
+              root to: "application#index"
+              resources :articles, only: %i(index show), module: :blog
+            end
+
+            Rails.application.routes.append do
+              get "*", to: "errors#404"
+            end
+            ```
+
+            # ✅✅
+
+            Note:
+            - Could put it in an append block
+            - Priority is easily maintained
+            ---
+            ## Route shadowing
+            
+            ```rb
+            # config/routes.rb
+            Rails.application.routes.draw do
+              root to: "application#index"
+              resources(:articles, only: %i(index show), module: :blog)
+            end
+            ```
+            ```rb
+            # blog/lib/engine.rb
+            initializer("blog.error.routes") do |app|
+              app.routes.append do
+                get "*", to: "errors#404"
+              end
+            end
+            ```
+
+            # ✅✅✅
+
+            Note:
+            - Could put in an initializer
+            - Less likely to change often
+            - Less error prone
+            ---
+            ## Route shadowing
+            
+            ```rb
+            # config/routes.rb
+            Rails.application.routes.draw do
+              root to: "application#index"
+              resource(:articles, only: %i(show index))
+              get "/login", to: "users#login"
+              get "*", to: "application#404"
+            end
+            ```
+            ```rb
+            # admin/lib/engine.rb
+            initializer("blog.error.routes") do |app|
+              app.routes.append do
+                get "*", to: "errors#404"
+              end
+            end
+            ```
+            ```rb
+            # admin/config/routes.rb
+            Rails.application.routes.draw do
+              get "/login", to: "admins#login"
+              resources(:users)
+              get "users/send_email", to: "users#send_email"
+            end
+            ```
+
+            Note:
+            - More complex example
+            - Much less clear at scale
+            - 20+ engines, thousands of routes
+            - Too difficult to change
+            ---
+            ## Technical debt
+
+            ![Bugsnag](images/bugsnag.png)
+            Note:
+            - Explain tech debt
+            - Relate it to my task
+            - How can you pay tech debt?
+            ---
+            ## Write tests
+
+            ```rb []
+            # test/controllers/blog/articles_controller_test.rb
+            class Blog::ArticlesControllerTest < AD::IntegrationTest
+              test "#show routes to /blog/articles/:id" do
+                assert_routing(
+                  "/blog/articles/25",
+                  controller: "blog/articles",
+                  action: "show",
+                  id: "25",
+                )
+              end
+            end
+            ```
+
+            Note:
+            - Test test test!
+            - Routing assertions are built in to help
+            - Explain assert_routing
+            ---
+            ## Write tests
+
+            ```rb [5]
+            # test/controllers/blog/articles_controller_test.rb
+            class Blog::ArticlesControllerTest < AD::IntegrationTest
+              test "#show routes to /blog/articles/:id" do
+                assert_routing(
+                  "/blog/articles/25",
+                  controller: "blog/articles",
+                  action: "show",
+                  id: "25",
+                )
+              end
+            end
+            ```
+
+            Note:
+            - Explain the first arg (path)
+            ---
+            ## Write tests
+
+            ```rb [6-8]
+            # test/controllers/blog/articles_controller_test.rb
+            class Blog::ArticlesControllerTest < AD::IntegrationTest
+              test "#show routes to /blog/articles/:id" do
+                assert_routing(
+                  "/blog/articles/25",
+                  controller: "blog/articles",
+                  action: "show",
+                  id: "25",
+                )
+              end
+            end
+            ```
+
+            Note:
+            - Explain the second argument (route hash)
+            ---
+            ## Integration vs Controller tests
+
+            ```rb
+            class ArticlesControllerTest < ActionController::TestCase
+              test "#index" do
+                get :show, params: { id: 25 }
+              end
+            end
+            # vs
+            class ArticlesControllerTest < ActionDispatch::IntegrationTest
+              test "#index" do
+                get "blog/articles/25"
+              end
+            end
+            ```
+
+            Note:
+            - Two different tests for controllers
+            - Controller tests test controller actions
+            - Uses the process entrypoint from earlier
+            - Integration tests test paths
+            - Uses Rack testing for end-to-end tests
+            ---
+            ## Integration vs Controller tests
+
+            ```rb
+            class ArticlesControllerTest < ActionController::TestCase
+              test "#index" do
+                get :show, params: { id: 25 }
+              end
+
+              test "#show routes to /blog/articles/:id" do
+                assert_routing(
+                  "/blog/articles/25",
+                  controller: "blog/articles",
+                  action: "show",
+                  id: "25",
+                )
+              end
+            end
+            ```
+            Note:
+            - Both tests have routing assertions
+            - Routing tests more important for controller tests
+            - Controller tests are helpful, but have glaring flaws
+            ---
+            ## Integration vs Controller tests
+            
+            ```rb
+            class ArticlesControllerTest < ActionDispatch::IntegrationTest
+              test "#index" do
+                get "blog/articles/25"
+              end
+            end
+            ```
+            Note:
+            - Integration tests are generated by default
+            - Use integration tests, if you can
+            - Tests routing automatically
+            ---
+            ## Summary
+
+            - Rails apps are just big Rack apps
+            - Draw less routes, it is faster
+            - Write tests, refactor safely
+            
+            Note:
+            - Preamble about all the info shown
+            - Higlight takeaways
+            - Rails apps are rack apps
+            - Draw less routes
+            - Please write tests
+            ---
+            ## Further reading
+            - https://guides.rubyonrails.org/rails_on_rack.html
+            - https://guides.rubyonrails.org/routing.html
+            - https://guides.rubyonrails.org/action_controller_overview.html
+            - https://guides.rubyonrails.org/engines.html
+            - https://github.com/rails/rails
+            ---
+          </script>
+        </section>
+      </div>
+    </div>
+    <script type="module">
+      import Reveal from 'reveal.js'
+      import Markdown from 'reveal.js-markdown-plugin'
+      import Mermaid from 'reveal.js-mermaid-plugin'
+      import LaserPointer from 'reveal.js-laser-pointer-plugin'
+      import Highlight from 'reveal.js-highlight-plugin'
+      import Notes from 'reveal.js-notes-plugin'
+
+      const deck = new Reveal({
+        plugins: [
+          Markdown,
+          Mermaid,
+          LaserPointer,
+          Highlight,
+          Notes,
+        ]
+      })
+      deck.initialize({
+        transition: 'none',
+        center: false,
+        controls: false,
+        hash: true,
+        controlsBackArrows: 'hidden',
+        mermaid: {
+          theme: 'dark',
+          themeVariables: {
+            signalTextColor: '',
+          },
+        },
+      })
     </script>
   </body>
 </html> 
